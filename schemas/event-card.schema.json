@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/event-card.schema.json",
+  "title": "事件卡",
+  "description": "经过来源审阅的事件结构；不携带固定感情。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "title", "date", "status", "primary_room", "summary", "source", "sensitivity", "revision_policy"],
+  "properties": {
+    "event_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+    "title": {"type": "string", "minLength": 1, "maxLength": 160},
+    "date": {"type": "string", "format": "date"},
+    "end_date": {"type": "string", "format": "date"},
+    "status": {"enum": ["draft", "confirmed", "disputed", "archived"]},
+    "primary_room": {"type": "string", "minLength": 1, "maxLength": 80},
+    "linked_rooms": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 80}, "uniqueItems": true},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "why_it_matters": {"type": "string", "maxLength": 2000},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref"],
+      "properties": {
+        "kind": {"enum": ["fictional_transcript", "conversation", "document", "photo", "audio", "other"]},
+        "ref": {"type": "string", "minLength": 1, "maxLength": 500},
+        "anchor": {"type": "string", "maxLength": 500}
+      }
+    },
+    "sensitivity": {"enum": ["public", "low", "private", "restricted"]},
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "relation"],
+        "properties": {
+          "target": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+          "relation": {"enum": ["causes", "continues", "contrasts", "echoes", "corrects", "other"]},
+          "note": {"type": "string", "maxLength": 1000}
+        }
+      }
+    },
+    "revision_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw", "summary"],
+      "properties": {
+        "raw": {"const": "frozen"},
+        "summary": {"enum": ["append_revision", "frozen"]}
+      }
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1}
+  }
+}

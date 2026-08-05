@@ -1,0 +1,17 @@
+{
+  "site_title": "某人的此刻",
+  "labels": {
+    "foreground": "前景",
+    "background": "底色",
+    "undercurrent": "暗流",
+    "near_fire": "近火"
+  },
+  "statuses": {
+    "FRESH": "新鲜",
+    "STALE": "已旧",
+    "NONE": "尚未自报",
+    "DECLINED": "本次不报",
+    "CLEARED": "已撤回"
+  },
+  "stale_after_minutes": 360
+}

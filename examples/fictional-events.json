@@ -1,0 +1,24 @@
+[
+  {
+    "event_id": "event_0042",
+    "title": "雨夜修好旧收音机",
+    "date": "2030-04-12",
+    "status": "confirmed",
+    "primary_room": "workshop",
+    "linked_rooms": ["relationship_room"],
+    "summary": "两位虚构参与者在停电的晚上共同修好一台旧收音机。",
+    "why_it_matters": "这次共同修理后来成为他们处理分歧时会引用的意象。",
+    "source": {
+      "kind": "fictional_transcript",
+      "ref": "examples/transcripts/radio-night.md",
+      "anchor": "fictional-lines-12-28"
+    },
+    "sensitivity": "public",
+    "links": [
+      {"target": "event_0048", "relation": "continues", "note": "共同修理后来成为重复仪式。"}
+    ],
+    "revision_policy": {"raw": "frozen", "summary": "append_revision"},
+    "created_at": "2030-04-13T09:00:00Z",
+    "version": 1
+  }
+]

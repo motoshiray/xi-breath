@@ -1,0 +1,57 @@
+:root {
+  font-family: ui-serif, "Songti SC", "Noto Serif CJK SC", serif;
+  color: #20322b;
+  background: #eee9df;
+  line-height: 1.7;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; padding: 7vh 24px; }
+
+.note {
+  width: min(920px, 100%);
+  margin: auto;
+  padding: clamp(28px, 5vw, 72px);
+  background: rgba(255, 253, 247, .88);
+  border: 1px solid rgba(36, 63, 52, .18);
+  box-shadow: 0 24px 70px rgba(55, 48, 35, .09);
+}
+
+header { position: relative; border-bottom: 1px solid #d7d1c4; padding-bottom: 28px; }
+h1 { font-size: clamp(2.6rem, 7vw, 5.8rem); font-weight: 500; margin: 0; letter-spacing: .08em; }
+.eyebrow, .time, footer { color: #6e7269; font-family: ui-sans-serif, system-ui, sans-serif; font-size: .86rem; }
+.eyebrow { letter-spacing: .18em; }
+.service { position: absolute; right: 0; top: 0; font: .84rem ui-sans-serif, system-ui, sans-serif; }
+.service span { display: inline-block; width: .65em; height: .65em; border-radius: 50%; background: #547b67; }
+.expression { padding: 48px 0 30px; }
+.expression h2 { font-size: .9rem; letter-spacing: .12em; font-weight: 500; color: #6e7269; }
+blockquote { margin: 16px 0; font-size: clamp(1.45rem, 3vw, 2.25rem); line-height: 1.55; }
+.layers { display: flex; gap: 28px; border-top: 1px solid #d7d1c4; padding-top: 30px; }
+.layer { flex: 1; min-width: 0; }
+.layer h2 { font: .82rem ui-sans-serif, system-ui, sans-serif; letter-spacing: .14em; color: #77786f; }
+.layer p { font-size: 1.2rem; }
+.layer.primary p { font-size: 1.75rem; }
+.layer small, .empty { color: #898a82; }
+footer { margin-top: 44px; border-top: 1px solid #d7d1c4; padding-top: 22px; display: flex; justify-content: space-between; gap: 24px; }
+footer strong { color: #427056; }
+
+@media (max-width: 640px) {
+  body { padding: 0; }
+  .note { min-height: 100vh; border: 0; }
+  .service { position: static; margin-top: 12px; }
+  .layers { display: block; }
+  footer { display: block; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root { color: #eee8da; background: #201f19; }
+  .note { background: rgba(39, 39, 31, .94); border-color: #545247; }
+  header, .layers, footer { border-color: #555247; }
+  .eyebrow, .time, footer, .expression h2, .layer h2, .layer small, .empty { color: #b7b3a7; }
+  footer strong { color: #9bc2a9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/correction.schema.json",
+  "title": "追加订正记录",
+  "description": "用新记录订正旧记录，不覆盖或删除原文。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["report_id", "event_type", "subject", "created_at", "corrects_report_id", "correction"],
+  "properties": {
+    "report_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+    "event_type": {"const": "correction"},
+    "subject": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,79}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "corrects_report_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+    "correction": {"type": "string", "minLength": 1, "maxLength": 8000},
+    "reason": {"type": "string", "maxLength": 2000}
+  }
+}

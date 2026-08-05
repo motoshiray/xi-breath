@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/affective-report.schema.json",
+  "title": "感情自报",
+  "description": "主体在一个具体时刻自愿留下的状态；不能由观察者代填。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["report_id", "event_type", "subject", "created_at", "foreground", "background", "undercurrent", "near_fire", "raw_expression"],
+  "properties": {
+    "report_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+    "event_type": {"const": "reported"},
+    "subject": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,79}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "encountered_event_id": {"type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+    "foreground": {"$ref": "#/$defs/emotionList"},
+    "background": {"$ref": "#/$defs/emotionList"},
+    "undercurrent": {"$ref": "#/$defs/emotionList"},
+    "near_fire": {"$ref": "#/$defs/emotionList"},
+    "current_va": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["valence", "arousal"],
+      "properties": {
+        "valence": {"type": "number", "minimum": -1, "maximum": 1},
+        "arousal": {"type": "number", "minimum": -1, "maximum": 1}
+      }
+    },
+    "raw_expression": {"type": "string", "minLength": 1, "maxLength": 8000},
+    "note": {"type": "string", "maxLength": 4000},
+    "source": {"const": "subject_self_report"}
+  },
+  "$defs": {
+    "emotionList": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["emotion"],
+        "properties": {
+          "emotion": {"type": "string", "minLength": 1, "maxLength": 80},
+          "intensity": {"type": ["string", "number", "null"]},
+          "card_id": {"type": ["string", "null"], "maxLength": 128}
+        }
+      }
+    }
+  }
+}
