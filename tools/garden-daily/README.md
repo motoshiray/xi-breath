@@ -5,11 +5,13 @@
 
 ## 做什么（按顺序）
 
-1. **收菜** `farm harvest`：熟了的全收。被偷过的照常收，小结里记一句「N号地被谁薅过」。
+动手之前都先看 status 里的字段：有熟了的地才收，有蛋才 collect，有饿的鸡才喂，伙伴今天没陪过才 tend，地里有在长的才浇。不靠撞报错来判断。花园出错时回的是中文纯文本，没有错误码。
+
+1. **收菜** `farm harvest`：`farm status` 里有 `mature` 的地才收，熟了的全收。被偷过的照常收，小结里记一句「N号地被谁薅过」。
 2. **补种＋浇水**：按地块计划补种收完后空出来的地。种子缺几颗就 `buy seed_<作物> <数量>` 买几颗，然后 `water` 全浇。浇水在冷却就跳过。
-3. **鸡窝**：先 `collect` 收蛋，再 `feed` 喂饿着的鸡，优先喂白菜。没有白菜就喂背包里最便宜的 `crop_*`，便宜贵按种子价来比，查不到种子价就不乱喂。伙伴的口粮只在喂完鸡还有剩的时候才拿来喂鸡。
-4. **伙伴** `pet tend crop_autumn_chestnut`：背包里没栗子就跳过，今天喂过了也跳过。
-5. **零活** `garden_work`，最多 3 次。次数用满了就停。
+3. **鸡窝**：先看 `coop status`，有蛋才 `collect`；有饿着的鸡才 `feed`，每喂一样就重读一次还剩几只饿着。优先喂白菜，白菜不够再按种子价从便宜到贵喂别的 `crop_*`，查不到种子价就不乱喂。`chickenNeverFeed` 里的（默认是幻光蘑菇）绝不喂；伙伴的口粮只在喂完鸡还有剩的时候才拿来喂鸡。读不到鸡窝状态就不动手。
+4. **伙伴**：先看 `pet status`，有今天还没陪过的伙伴、背包里也有栗子，才 `pet tend crop_autumn_chestnut`。
+5. **零活** `garden_work`，最多 3 次。零活没有状态可以查，只能打了看回包；花园回「今天已经打工」这类话就算次数满了，不出声地停下。
 6. **钓鱼**：先看 `fish status`。今天钓满了就跳过。面包虫不够就 `buy bread <缺的条数>`，然后 `cast 10`。
 7. **蜂群** `bee status`：
    - 门口有幼蜂 → **停**：不 settle、不 send、不 keep/release，只列出每只的 label、亲代、是不是新图鉴，等 Rui 挑。
@@ -24,7 +26,7 @@
 
 ## 出错和重跑
 
-- 每一步各自兜错，一步失败不拦后面。出错的那一步写一行 `✗ 步骤：原因`。
+- 每一步各自兜错，一步失败不拦后面。出错的那一步写一行 `✗ 步骤：花园原文`（去掉了 `Error executing tool xxx:` 前缀），这一步就停在这里。看到不认识的 ✗，把那一行发给腕足。
 - 超时、断线这类结果说不准的，写成 `? 步骤：不确定（原因），没重试`，**任何一步都不自动重试**。买面包虫断线就不钓；买种子断线，那块地就先不种，下次跑的时候背包里有种子会直接种上。
 - 一开始连不上花园的话，整张小结只有一句「连不上花园，今天什么都没做」。
 - 同一个花园日（UTC 00:00 换日，即 JST 09:00）再跑一次，零活满了、伙伴喂过了、钓鱼满了、没东西可收的，都会静默跳过。判断全靠花园当场的回包，本地不存「今天做过什么」。
@@ -63,7 +65,7 @@ node --env-file=.env src/index.js --config garden-daily.config.json --once --dry
 node --env-file=.env src/index.js --config garden-daily.config.json --once
 ```
 
-在 Claude Code 里调用 `garden_daily({"dryRun": true})` 也是演练。
+在 Claude Code 里调用 `garden_daily({"dryRun": true})` 也是演练。演练会把要收的地当成已经空出来来算种地计划，所以小结里写的是「会收 / 会种 / 会喂 / 零活：会试3次」这样的话。今天打没打过零活，演练是不知道的。
 
 ## 改地块计划
 
@@ -77,7 +79,7 @@ node --env-file=.env src/index.js --config garden-daily.config.json --once
 - `"house"` 或 `null` 表示这块地跳过。
 - 买了新地却还没写进计划的话，地空着也不会去种，小结里会提一句「N号空着，不在计划里」。
 
-其他配置项：`cropNames`（小结里显示的短名）、`chickenFood`、`petFood`（填 `null` 表示不喂伙伴）、`work.times`、`fishing.bait`、`fishing.casts`。
+其他配置项：`cropNames`（小结里显示的短名）、`chickenFood`、`chickenNeverFeed`（绝不拿来喂鸡的 `crop_*`）、`petFood`（填 `null` 表示不喂伙伴）、`work.times`、`fishing.bait`、`fishing.casts`。
 
 ## 小结长这样
 
@@ -102,4 +104,4 @@ node --env-file=.env src/index.js --config garden-daily.config.json --once
 npm test
 ```
 
-测试用的是假花园，其中一个测试会在本机起一个假的花园 MCP，再用真入口连过去跑一遍。没有碰过真花园。
+测试用的是假花园，出错回包照真花园的格式写（`isError` + `Error executing tool xxx: 中文原文`）。其中一个测试会在本机起一个假的花园 MCP，再用真入口连过去跑一遍，包括同一天跑第二次。

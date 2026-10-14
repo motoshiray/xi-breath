@@ -7,11 +7,16 @@ import { DryRunGateway } from "../src/gateway.js";
 
 const NOW = () => new Date("2026-10-15T01:00:00Z");
 
-function raw(data, isError = false) {
-  return { content: [{ type: "text", text: JSON.stringify(data) }], ...(isError ? { isError: true } : {}) };
+function raw(data) {
+  return { content: [{ type: "text", text: JSON.stringify(data) }] };
 }
 
-// 假花园：按 "工具 命令" 取回包；值可以是数组（依次返回）或 Error（模拟断线）。
+// 真花园的出错格式：isError ＋ 纯文本，没有 JSON、没有错误码。
+function gardenError(tool, message) {
+  return { content: [{ type: "text", text: `Error executing tool ${tool}: ${message}` }], isError: true };
+}
+
+// 假花园：按 "工具 命令" 取回包；值可以是数组（依次返回，最后一个一直重复）或 Error（模拟断线）。
 class FakeGarden {
   constructor(responses) {
     this.responses = responses;
@@ -30,38 +35,52 @@ class FakeGarden {
 }
 
 const FORBIDDEN = /^(kitchen|inventory|house|hunt|park)\b|\b(steal|scout|sell|keep|release|free|name|expand|buy plot|buy fence|leave)\b|^coop buy$|^bee buy$/u;
+const ACTIONS = /^farm (harvest|buy|plant|water)|^coop (collect|feed)|^pet tend|^garden_work|^fish (buy|cast)|^bee (settle|send)/u;
+
+const FARM_BEFORE = {
+  plots: [
+    { plot: 1, state: "house" },
+    { plot: 2, state: "mature", crop: "cabbage" },
+    { plot: 3, state: "mature", crop: "autumn_chestnut" },
+    { plot: 4, state: "mature", crop: "autumn_chestnut" },
+    { plot: 5, state: "growing", crop: "moonlight_rose" },
+  ],
+  house: { plot: 1 },
+  inventory: { crop_cabbage: 2, seed_autumn_chestnut: 1 },
+  moon_balance: 2657,
+  water_cooldown_seconds: 0,
+};
+const FARM_AFTER = {
+  ...FARM_BEFORE,
+  plots: [{ plot: 1, state: "house" }, { plot: 2, state: "empty" }, { plot: 3, state: "empty" }, { plot: 4, state: "empty" }, { plot: 5, state: "growing", crop: "moonlight_rose" }],
+  inventory: { crop_cabbage: 3, crop_autumn_chestnut: 2, seed_autumn_chestnut: 1 },
+  moon_balance: 2702,
+};
 
 function busyDay(overrides = {}) {
   return new FakeGarden({
+    "farm status": [raw(FARM_BEFORE), raw(FARM_AFTER)],
     "farm harvest": raw({ harvested: [
       { plot: 2, crop: "cabbage", crop_name: "白菜", stored: 1, moon: 0 },
       { plot: 3, crop: "autumn_chestnut", crop_name: "秋月栗", stored: 1, moon: 0, was_stolen: true, stolen_by: "Aster" },
       { plot: 4, crop: "autumn_chestnut", crop_name: "秋月栗", stored: 1, moon: 0 },
     ] }),
-    "farm status": raw({
-      plots: [
-        { plot: 1, state: "house" },
-        { plot: 2, state: "empty" },
-        { plot: 3, state: "empty" },
-        { plot: 4, state: "empty" },
-        { plot: 5, state: "growing", crop: "moonlight_rose" },
-      ],
-      house: { plot: 1 },
-      inventory: { crop_cabbage: 3, crop_autumn_chestnut: 2, seed_autumn_chestnut: 1 },
-      moon_balance: 2702,
-      water_cooldown_seconds: 0,
-    }),
     "farm buy seed_cabbage 1": raw({ bought: "seed_cabbage", quantity: 1 }),
     "farm buy seed_autumn_chestnut 1": raw({ bought: "seed_autumn_chestnut", quantity: 1 }),
     "farm plant 2 cabbage": raw({ planted: 2 }),
     "farm plant 3 autumn_chestnut": raw({ planted: 3 }),
     "farm plant 4 autumn_chestnut": raw({ planted: 4 }),
     "farm water": raw({ watered: [2, 3, 4, 5] }),
+    "coop status": [
+      raw({ chickens: [{ index: 1, state: "ready" }, { index: 2, state: "egg_ready" }] }),
+      raw({ chickens: [{ index: 1, state: "hungry" }, { index: 2, state: "hungry" }] }),
+      raw({ chickens: [{ index: 1, state: "laying" }, { index: 2, state: "laying" }] }),
+    ],
     "coop collect": raw({ collected: 2 }),
-    "coop status": raw({ chickens: [{ index: 1, state: "hungry" }, { index: 2, state: "hungry" }] }),
     "coop feed crop_cabbage": raw({ fed: 2 }),
-    "pet tend crop_autumn_chestnut": raw({ name: "貘" }),
-    "garden_work": [raw({ job: "a", moon: 15, moon_balance: 2660 }), raw({ job: "b", moon: 15 }), raw({ job: "c", moon: 15 })],
+    "pet status": raw({ pets: [{ id: "p1", name: "貘", tended_today: false }], slots_free: 1 }),
+    "pet tend crop_autumn_chestnut": raw({ ok: true }),
+    "garden_work": [raw({ job: "a", moon: 15 }), raw({ job: "b", moon: 15 }), raw({ job: "c", moon: 15 })],
     "fish status": raw({ casts_remaining: 10, bait: [] }),
     "fish buy bread 10": raw({ bought: "bait_bread", quantity: 10 }),
     "fish cast 10": raw({
@@ -82,7 +101,7 @@ test("忙碌的一天：小结和需求里的样子一致，且很短", async ()
   assert.equal(text, [
     "花园日 2026-10-15（UTC）",
     "收：白菜1、秋月栗2（3号地被 Aster 薅过）",
-    "种：2白菜 3栗 4栗；浇水✓",
+    "种：2白菜 3秋月栗 4秋月栗；浇水✓",
     "鸡：蛋2，喂了白菜",
     "貘：喂了秋月栗",
     "零活：+45",
@@ -94,6 +113,40 @@ test("忙碌的一天：小结和需求里的样子一致，且很短", async ()
   assert.ok(text.length < 600);
   assert.ok(!garden.calls.includes("bee send"), "门口有幼蜂时不能 send");
   for (const call of garden.calls) assert.doesNotMatch(call, FORBIDDEN);
+});
+
+test("同一天重跑（真花园回包格式）：零活「今天已经打工」静默跳过，其他事先看 status 就不动手", async () => {
+  const garden = new FakeGarden({
+    "farm status": raw({ plots: [{ plot: 1, state: "house" }, { plot: 2, state: "growing", crop: "cabbage" }], house: { plot: 1 }, inventory: { crop_autumn_chestnut: 1 }, moon_balance: 2604, water_cooldown_seconds: 3000 }),
+    "coop status": raw({ chickens: [{ index: 1, state: "laying", status: "正在下蛋，还要 3 小时" }] }),
+    "pet status": raw({ pets: [{ id: "p1", name: "貘", tended_today: true }], slots_free: 1, hint: "今天都陪过了。明天再来" }),
+    "garden_work": gardenError("garden_work", "今天已经打工"),
+    "fish status": raw({ casts_remaining: 0, bait: [] }),
+    "bee status": raw({ hive: [{ index: 1 }], trips_left_today: 0, waiting: [], out: false }),
+  });
+  const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
+  assert.equal(text, "花园日 2026-10-15（UTC）\n余额：2604 moon");
+  assert.deepEqual(garden.calls.filter((call) => ACTIONS.test(call)), ["garden_work"], "除了试一次零活，什么动作都不该发");
+});
+
+test("零活打了一次后被拒：记上打成的那次，不报错", async () => {
+  const garden = busyDay({ "garden_work": [raw({ job: "a", moon: 15 }), gardenError("garden_work", "今天已经打工")] });
+  const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
+  assert.match(text, /零活：\+15\n/u);
+  assert.doesNotMatch(text, /✗/u);
+  assert.equal(garden.calls.filter((call) => call === "garden_work").length, 2);
+});
+
+test("认不出的报错：原文去掉前缀写进 ✗，并且这一步停下", async () => {
+  const garden = busyDay({
+    "garden_work": gardenError("garden_work", "服务器在打瞌睡"),
+    "coop feed crop_cabbage": gardenError("coop", "鸡窝门卡住了"),
+  });
+  const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
+  assert.match(text, /✗ 零活：服务器在打瞌睡/u);
+  assert.match(text, /鸡：蛋2，喂鸡✗ 鸡窝门卡住了/u);
+  assert.equal(garden.calls.filter((call) => call === "garden_work").length, 1);
+  assert.equal(garden.calls.filter((call) => call.startsWith("coop feed")).length, 1);
 });
 
 test("门口已有幼蜂：不 settle、不 send，只列出来", async () => {
@@ -124,22 +177,11 @@ test("蜂回来、门口没幼蜂 → settle 后 send；蜂在外面 → 什么�
   assert.deepEqual(away.calls.filter((call) => call.startsWith("bee")), ["bee status"]);
 });
 
-test("同一天重跑：零活满、伙伴喂过、钓鱼满、没东西收，都静默跳过", async () => {
-  const garden = new FakeGarden({
-    "farm harvest": raw({ code: "nothing_to_harvest" }, true),
-    "farm status": raw({ plots: [{ plot: 1, state: "house" }, { plot: 2, state: "growing", crop: "cabbage" }], house: { plot: 1 }, inventory: { crop_autumn_chestnut: 1 }, moon_balance: 2747, water_cooldown_seconds: 3000 }),
-    "coop collect": raw({ code: "no_eggs" }, true),
-    "coop status": raw({ chickens: [{ index: 1, state: "laying" }] }),
-    "pet tend crop_autumn_chestnut": raw({ code: "tended_today" }, true),
-    "garden_work": raw({ code: "work_limit" }, true),
-    "fish status": raw({ casts_remaining: 0, bait: [] }),
-    "bee status": raw({ hive: [{ index: 1 }], trips_left_today: 0, waiting: [], out: false }),
-  });
-  const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
-  assert.equal(text, "花园日 2026-10-15（UTC）\n余额：2747 moon");
-  assert.equal(garden.calls.filter((call) => call === "garden_work").length, 1);
-  assert.ok(!garden.calls.some((call) => call.startsWith("fish buy") || call.startsWith("fish cast")));
-  assert.ok(!garden.calls.includes("farm water"), "冷却中不浇");
+test("背包里饵够（status 写 key:\"bread\"）就不买", async () => {
+  const garden = busyDay({ "fish status": raw({ casts_remaining: 10, bait: [{ key: "bread", quantity: 12 }] }) });
+  await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
+  assert.ok(!garden.calls.some((call) => call.startsWith("fish buy")));
+  assert.ok(garden.calls.includes("fish cast 10"));
 });
 
 test("买面包虫时断线：标「?」、不钓、不重试，后面的蜂照常跑", async () => {
@@ -151,16 +193,25 @@ test("买面包虫时断线：标「?」、不钓、不重试，后面的蜂照�
   assert.match(text, /门口幼蜂1只等挑/u);
 });
 
-test("读不到地块时不买种子，零活出错也不拦后面", async () => {
+test("收菜后读不到地块：不买种子、不种、不浇，后面照常", async () => {
   const garden = busyDay({
-    "farm status": [raw({ moon_balance: 100 }), Object.assign(new Error("timeout"), { code: "ETIMEDOUT" }), raw({ moon_balance: 100 })],
-    "garden_work": raw({ code: "server_busy" }, true),
+    "farm status": [raw(FARM_BEFORE), Object.assign(new Error("timeout"), { code: "ETIMEDOUT" }), raw(FARM_AFTER)],
   });
   const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
-  assert.match(text, /✗ 种：读不到地块（ETIMEDOUT），没买种、没种/u);
-  assert.match(text, /✗ 零活：server_busy/u);
+  assert.match(text, /✗ 种：收菜后读不到地块（ETIMEDOUT），没买种、没种、没浇/u);
   assert.match(text, /钓鱼：10杆/u);
-  assert.ok(!garden.calls.some((call) => call.startsWith("farm buy") || call.startsWith("farm plant")));
+  assert.ok(!garden.calls.some((call) => /^farm (buy|plant|water)/u.test(call)));
+});
+
+test("读不到鸡窝 / 伙伴状态：不盲喂", async () => {
+  const garden = busyDay({
+    "coop status": gardenError("coop", "鸡窝在打扫"),
+    "pet status": Object.assign(new Error("reset"), { code: "ECONNRESET" }),
+  });
+  const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
+  assert.match(text, /✗ 鸡：读不到鸡窝（鸡窝在打扫），没收蛋、没喂/u);
+  assert.match(text, /\? 伙伴：不确定（读不到状态（ECONNRESET），没喂）/u);
+  assert.ok(!garden.calls.some((call) => /^coop (collect|feed)|^pet tend/u.test(call)));
 });
 
 test("连不上花园：一句话说明，什么都不动", async () => {
@@ -170,27 +221,37 @@ test("连不上花园：一句话说明，什么都不动", async () => {
   assert.deepEqual(garden.calls, ["farm status"]);
 });
 
-test("没白菜就喂最便宜的 crop_*，不动伙伴的口粮", async () => {
+test("没白菜就从便宜的 crop_* 喂起；幻光蘑菇和伙伴口粮不动", async () => {
+  const farm = { plots: [], inventory: { crop_phantom_shroom: 5, crop_moonlight_rose: 4, crop_carrot: 1, crop_autumn_chestnut: 1 }, moon_balance: 10, water_cooldown_seconds: 0 };
   const garden = busyDay({
-    "farm harvest": raw({ harvested: [] }),
-    "farm status": raw({ plots: [], inventory: { crop_moonlight_rose: 4, crop_carrot: 1, crop_autumn_chestnut: 1 }, moon_balance: 10, water_cooldown_seconds: 0 }),
-    "farm water": raw({ code: "nothing_to_water" }, true),
-    "farm shop": raw({ seeds: [{ item: "seed_moonlight_rose", price: 40 }, { item: "seed_carrot", price: 3 }, { item: "seed_autumn_chestnut", price: 1 }] }),
-    "coop status": raw({ chickens: [{ index: 1, state: "hungry" }, { index: 2, state: "hungry" }] }),
+    "farm status": raw(farm),
+    "farm shop": raw({ seeds: [{ item: "seed_phantom_shroom", price: 1 }, { item: "seed_moonlight_rose", price: 40 }, { item: "seed_carrot", price: 3 }, { item: "seed_autumn_chestnut", price: 1 }] }),
+    "coop status": [
+      raw({ chickens: [{ index: 1, state: "hungry" }, { index: 2, state: "hungry" }] }),
+      raw({ chickens: [{ index: 1, state: "laying" }, { index: 2, state: "hungry" }] }),
+      raw({ chickens: [{ index: 1, state: "laying" }, { index: 2, state: "laying" }] }),
+    ],
     "coop feed crop_carrot": raw({ fed: 1 }),
     "coop feed crop_moonlight_rose": raw({ fed: 1 }),
   });
   const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
-  assert.match(text, /鸡：蛋2，喂了carrot、玫瑰/u);
+  assert.match(text, /鸡：喂了carrot、玫瑰/u);
+  assert.ok(!garden.calls.includes("coop feed crop_phantom_shroom"));
   assert.ok(!garden.calls.includes("coop feed crop_autumn_chestnut"));
+  assert.ok(!garden.calls.includes("coop collect"), "没有蛋就不 collect");
   assert.match(text, /貘：喂了/u);
 });
 
-test("演练：只发 status/shop，列出本来会执行的命令", async () => {
-  const garden = busyDay();
+test("演练：只发 status/shop；会收的地算进种地计划；零活写「会试」", async () => {
+  const garden = busyDay({ "farm status": raw(FARM_BEFORE) });
   const dry = new DryRunGateway(garden);
-  await runGardenDaily({ gateway: dry, config: DEFAULT_CONFIG, now: NOW });
+  const { text } = await runGardenDaily({ gateway: dry, config: DEFAULT_CONFIG, dryRun: true, now: NOW });
   assert.ok(garden.calls.every((call) => / (status|shop)$/u.test(call)), garden.calls.join(", "));
-  assert.ok(dry.skipped.includes("farm harvest"));
-  assert.ok(dry.skipped.includes("garden_work"));
+  assert.match(text, /会收：2白菜 3栗 4栗/u);
+  assert.match(text, /会种：2白菜 3栗 4栗；会浇水/u);
+  assert.match(text, /零活：会试3次/u);
+  assert.match(text, /钓鱼：会买饵10条、钓10杆/u);
+  assert.doesNotMatch(text, /零活：3次|零活：\+/u);
+  assert.ok(dry.skipped.includes("farm buy seed_cabbage 1"));
+  assert.ok(dry.skipped.includes("farm plant 2 cabbage"));
 });

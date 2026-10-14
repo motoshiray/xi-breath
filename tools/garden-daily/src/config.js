@@ -6,6 +6,8 @@ export const DEFAULT_CONFIG = {
   // 小结里用的短名；没写的作物用上游返回的名字或 ID。
   cropNames: { cabbage: "白菜", autumn_chestnut: "栗", moonlight_rose: "玫瑰" },
   chickenFood: "crop_cabbage",
+  // 白菜不够时也绝不拿来喂鸡的东西。
+  chickenNeverFeed: ["crop_phantom_shroom"],
   petFood: "crop_autumn_chestnut",
   work: { times: 3 },
   fishing: { bait: "bread", casts: 10 },
@@ -40,6 +42,9 @@ function validate(config) {
   }
   for (const key of ["chickenFood", "petFood"]) {
     if (config[key] !== null && (typeof config[key] !== "string" || !config[key].startsWith("crop_"))) throw new Error(`配置 ${key} 应是 crop_* 或 null。`);
+  }
+  if (!Array.isArray(config.chickenNeverFeed) || !config.chickenNeverFeed.every((item) => typeof item === "string" && item.startsWith("crop_"))) {
+    throw new Error("配置 chickenNeverFeed 应是 crop_* 的数组。");
   }
   if (!Number.isInteger(config.work.times) || config.work.times < 0 || config.work.times > 10) throw new Error("配置 work.times 应是 0–10 的整数。");
   if (!Number.isInteger(config.fishing.casts) || config.fishing.casts < 0 || config.fishing.casts > 50) throw new Error("配置 fishing.casts 应是 0–50 的整数。");

@@ -8,6 +8,7 @@
   },
   "cropNames": { "cabbage": "白菜", "autumn_chestnut": "栗", "moonlight_rose": "玫瑰" },
   "chickenFood": "crop_cabbage",
+  "chickenNeverFeed": ["crop_phantom_shroom"],
   "petFood": "crop_autumn_chestnut",
   "work": { "times": 3 },
   "fishing": { "bait": "bread", "casts": 10 }

@@ -31,7 +31,7 @@ async function main() {
     const lockFile = path.join(configPath ? path.dirname(configPath) : process.cwd(), ".garden-daily.lock");
     return withLock(lockFile, async () => {
       const target = dryRun ? new DryRunGateway(gateway) : gateway;
-      const { text } = await runGardenDaily({ gateway: target, config });
+      const { text } = await runGardenDaily({ gateway: target, config, dryRun });
       if (!dryRun) return text;
       const planned = target.skipped.length ? target.skipped.map((command) => `  ${command}`).join("\n") : "  （没有要动手的事）";
       return `【演练，没动手】\n${text}\n本来会执行：\n${planned}`;
