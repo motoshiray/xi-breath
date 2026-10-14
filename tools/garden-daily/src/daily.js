@@ -50,7 +50,7 @@ async function harvestStep(ctx) {
   const counts = new Map();
   const stolen = [];
   for (const row of harvested) {
-    const label = row.crop_name || cropLabel(ctx, row.crop) || "?";
+    const label = row.crop_name || cropLabel(ctx, row.crop) || "?"; // 收菜行用花园给的全名
     if (row.crop) ctx.cropLabels[`crop_${row.crop}`] = label;
     counts.set(label, (counts.get(label) ?? 0) + (typeof row.stored === "number" ? row.stored : 1));
     if (row.was_stolen || row.stolen_by) stolen.push(`${row.plot}号地被 ${row.stolen_by || "人"} 薅过`);
@@ -483,7 +483,7 @@ function readInventory(ctx, data) {
 
 function cropLabel(ctx, crop) {
   if (!crop) return "";
-  return ctx.cropLabels[`crop_${crop}`] ?? ctx.config.cropNames[crop] ?? crop;
+  return ctx.config.cropNames[crop] ?? ctx.cropLabels[`crop_${crop}`] ?? crop;
 }
 
 function labelOf(ctx, item) {
