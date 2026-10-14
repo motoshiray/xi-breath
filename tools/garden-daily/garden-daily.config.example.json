@@ -1,0 +1,14 @@
+{
+  "plots": {
+    "1": "house",
+    "2": "cabbage",
+    "3": "autumn_chestnut",
+    "4": "autumn_chestnut",
+    "5": "moonlight_rose"
+  },
+  "cropNames": { "cabbage": "白菜", "autumn_chestnut": "栗", "moonlight_rose": "玫瑰" },
+  "chickenFood": "crop_cabbage",
+  "petFood": "crop_autumn_chestnut",
+  "work": { "times": 3 },
+  "fishing": { "bait": "bread", "casts": 10 }
+}

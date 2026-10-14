@@ -1,0 +1,18 @@
+{
+  "name": "garden-daily",
+  "version": "0.1.0",
+  "description": "月光花园每日一键：一次调用做完例行事，只回一张短小结。",
+  "private": true,
+  "type": "module",
+  "bin": { "garden-daily": "src/index.js" },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.6.1"
+  }
+}
