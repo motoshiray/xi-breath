@@ -12,7 +12,7 @@ const WORK_DONE = /work_limit|今天已经打(过)?工|今天.*打过工|打工.
 export async function runGardenDaily({ gateway, config, dryRun = false, now = () => new Date() }) {
   const day = now().toISOString().slice(0, 10);
   const out = new Report();
-  const ctx = { gateway, config, dry: dryRun, out, inventory: {}, inventoryKnown: false, balance: undefined, cropLabels: {} };
+  const ctx = { gateway, config, dry: dryRun, out, inventory: {}, inventoryKnown: false, cropLabels: {} };
 
   // 先看一眼农场：连都连不上就什么都不做，省得每步都报一遍「不确定」。
   const probe = await call(ctx, "farm", "status");
@@ -48,15 +48,19 @@ async function harvestStep(ctx) {
   const harvested = Array.isArray(res.data.harvested) ? res.data.harvested : [];
   if (harvested.length === 0) return;
   const counts = new Map();
-  const stolen = [];
+  const stolen = new Map(); // 谁 → [地号]
   for (const row of harvested) {
     const label = row.crop_name || cropLabel(ctx, row.crop) || "?"; // 收菜行用花园给的全名
     if (row.crop) ctx.cropLabels[`crop_${row.crop}`] = label;
     counts.set(label, (counts.get(label) ?? 0) + (typeof row.stored === "number" ? row.stored : 1));
-    if (row.was_stolen || row.stolen_by) stolen.push(`${row.plot}号地被 ${row.stolen_by || "人"} 薅过`);
+    if (row.was_stolen || row.stolen_by) {
+      const who = row.stolen_by || "人";
+      stolen.set(who, [...(stolen.get(who) ?? []), row.plot]);
+    }
   }
   const list = [...counts].map(([label, n]) => `${label}${n}`).join("、");
-  ctx.out.line(`收：${list}${stolen.length ? `（${stolen.join("；")}）` : ""}`);
+  const notes = [...stolen].map(([who, plots]) => `${plots.join("、")}号地被 ${who} 薅过`);
+  ctx.out.line(`收：${list}${notes.length ? `（${notes.join("；")}）` : ""}`);
 }
 harvestStep.label = "收菜";
 
@@ -398,15 +402,17 @@ function beeIsBack(data) {
 
 function honeySummary(honey) {
   if (!Array.isArray(honey) || honey.length === 0) return "";
+  // 上游一罐一行，同名的要加起来。
   let total = 0;
-  const kinds = [];
+  const kinds = new Map();
   for (const row of honey) {
     const qty = typeof row?.quantity === "number" ? row.quantity : typeof row?.qty === "number" ? row.qty : 1;
     total += qty;
     const name = typeof row === "string" ? row : row?.name ?? row?.item;
-    if (name) kinds.push(`${name}${qty}`);
+    if (name) kinds.set(name, (kinds.get(name) ?? 0) + qty);
   }
-  return `收蜜${total}${kinds.length > 1 ? `（${kinds.join("、")}）` : ""}`;
+  const list = [...kinds].map(([name, qty]) => `${name}${qty}`);
+  return `收蜜${total}${list.length > 1 ? `（${list.join("、")}）` : ""}`;
 }
 
 function youngLines(head, young) {
@@ -417,10 +423,17 @@ function youngLines(head, young) {
 }
 
 // ── 余额 ──────────────────────────────────────────────────
+// 真花园的 farm status / garden_work 不一定带 moon_balance；fish shop 一定带（开源工具在真花园上验证过）。
 async function balanceStep(ctx) {
-  const res = await call(ctx, "farm", "status");
-  if (res.kind === "ok" && typeof res.data.moon_balance === "number") ctx.balance = res.data.moon_balance;
-  if (typeof ctx.balance === "number") ctx.out.line(`余额：${ctx.balance} moon`);
+  let balance;
+  const farm = await call(ctx, "farm", "status");
+  if (farm.kind === "ok" && typeof farm.data.moon_balance === "number") {
+    balance = farm.data.moon_balance;
+  } else {
+    const shop = await call(ctx, "fish", "shop");
+    if (shop.kind === "ok" && typeof shop.data.moon_balance === "number") balance = shop.data.moon_balance;
+  }
+  if (typeof balance === "number") ctx.out.line(`余额：${balance} moon`);
 }
 
 // ── 公用 ──────────────────────────────────────────────────
@@ -439,7 +452,6 @@ async function call(ctx, tool, command) {
     return { kind: "unknown", reason: shortReason(error) };
   }
   const data = parseData(raw);
-  if (typeof data.moon_balance === "number") ctx.balance = data.moon_balance;
   const code = errorCode(raw, data);
   return code ? { kind: "err", code, data } : { kind: "ok", data };
 }

@@ -63,7 +63,7 @@ function busyDay(overrides = {}) {
     "farm harvest": raw({ harvested: [
       { plot: 2, crop: "cabbage", crop_name: "白菜", stored: 1, moon: 0 },
       { plot: 3, crop: "autumn_chestnut", crop_name: "秋月栗", stored: 1, moon: 0, was_stolen: true, stolen_by: "Aster" },
-      { plot: 4, crop: "autumn_chestnut", crop_name: "秋月栗", stored: 1, moon: 0 },
+      { plot: 4, crop: "autumn_chestnut", crop_name: "秋月栗", stored: 1, moon: 0, was_stolen: true, stolen_by: "Aster" },
     ] }),
     "farm buy seed_cabbage 1": raw({ bought: "seed_cabbage", quantity: 1 }),
     "farm buy seed_autumn_chestnut 1": raw({ bought: "seed_autumn_chestnut", quantity: 1 }),
@@ -88,7 +88,7 @@ function busyDay(overrides = {}) {
       new_species: ["沉星鳢"],
     }),
     "bee status": raw({ hive: [{ index: 1 }], count: "1/4", trips_left_today: 1, waiting: [], out: true, back_in: "一会儿", hint: "蜂群回来了，settle 收蜜" }),
-    "bee settle": raw({ visited: "x", honey: [{ name: "百花蜜", quantity: 6 }, { name: "幻光蘑菇蜜", quantity: 1 }], young: [
+    "bee settle": raw({ visited: "x", honey: [...Array(6).fill({ name: "百花蜜" }), { name: "幻光蘑菇蜜" }], young: [
       { bee_id: "y1", label: "霜白·菱格·潜根", parents_text: "睿蜜×沈克家小霜", new_to_codex: true },
     ] }),
     ...overrides,
@@ -100,7 +100,7 @@ test("忙碌的一天：小结和需求里的样子一致，且很短", async ()
   const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
   assert.equal(text, [
     "花园日 2026-10-15（UTC）",
-    "收：白菜1、秋月栗2（3号地被 Aster 薅过）",
+    "收：白菜1、秋月栗2（3、4号地被 Aster 薅过）",
     "种：2白菜 3栗 4栗；浇水✓",
     "鸡：蛋2，喂了白菜",
     "貘：喂了栗",
@@ -254,4 +254,15 @@ test("演练：只发 status/shop；会收的地算进种地计划；零活写�
   assert.doesNotMatch(text, /零活：3次|零活：\+/u);
   assert.ok(dry.skipped.includes("farm buy seed_cabbage 1"));
   assert.ok(dry.skipped.includes("farm plant 2 cabbage"));
+});
+
+test("farm status 里没有 moon_balance：余额改从 fish shop 读", async () => {
+  const { moon_balance: _before, ...before } = FARM_BEFORE;
+  const { moon_balance: _after, ...after } = FARM_AFTER;
+  const garden = busyDay({
+    "farm status": [raw(before), raw(after)],
+    "fish shop": raw({ moon_balance: 2604, bait: [{ item: "bait_bread", name: "小面包虫", price: 5 }] }),
+  });
+  const { text } = await runGardenDaily({ gateway: garden, config: DEFAULT_CONFIG, now: NOW });
+  assert.match(text, /\n余额：2604 moon$/u);
 });
