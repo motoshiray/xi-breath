@@ -8176,6 +8176,9 @@ PARTS.push({
     const tapirCam = tapirC.clone().add(tapirFwd.clone().applyAxisAngle(V(0, 1, 0), 0.95).multiplyScalar(3.1)).setY(1.35);
 
     const SHOTS = [
+      { id: 'moon', hold: 6.5, move: 4.5, fov: 50,
+        pos: V(0.5, 1.5, 7.0), target: V(0.5, 4.6, -2.5),
+        caption: '天上一輪滿月，流星一顆接一顆。', events: [[0.6, 'meteor:request', { reflect: false }], [3.4, 'meteor:request', { reflect: false }]] },
       { id: 'house', hold: 6.0, move: 4.5, fov: 38,
         pos: V(2.6, 3.3, 5.6), target: V(-2.3, 1.7, -2.6),
         caption: '一間木頭小屋，窗裡亮著暖暖的燈。', events: [[3.0, 'window:warm']] },
@@ -8217,8 +8220,8 @@ PARTS.push({
 
     // 開場：繞島一圈（從進門那一刻的角度開始，慢慢靠近）
     const OPEN = { dur: 22, r0: 30, r1: 21, h0: 12.5, h1: 8.5 };
-    const OPEN_CAPTIONS = [[3, 9, '夜裡，有一座小小的島，漂在天上。'], [12, 19, '天上一輪滿月，流星一顆接一顆。']];
-    const OPEN_EVENTS = [[13.0, 'meteor:request', { reflect: false }]];
+    const OPEN_CAPTIONS = [[4, 16, '夜裡，有一座小小的島，漂在天上。']];
+    const OPEN_EVENTS = [[11.0, 'meteor:request', { reflect: false }]];
 
     // ---- 預先排好時間軸 ----
     function layout() {
